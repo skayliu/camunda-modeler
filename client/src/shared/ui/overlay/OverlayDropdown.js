@@ -132,9 +132,11 @@ function OptionGroup(props) {
 function Options(props) {
   const { items, onSelect } = props;
 
+  const focusRef = useArrowNavigation();
+
   return (
     <Section.Body>
-      <ul>
+      <ul ref={ focusRef }>
         {
           items.map((item, index) =>
             <Option
@@ -171,4 +173,73 @@ function Option(props) {
 
 function isGrouped(items) {
   return items.length && items[0].key;
+}
+
+function useArrowNavigation() {
+  const ref = React.createRef(0);
+
+  const handleKeydown = (event) => {
+    const {
+      key,
+      keyCode,
+      currentTarget
+    } = event;
+
+    if (key === 'ArrowDown' && keyCode == 40) {
+      focusNext(currentTarget);
+    } else if (key === 'ArrowUp' && keyCode == 38) {
+      focusPrevious(currentTarget);
+    }
+  };
+
+  React.useEffect(() => {
+    if (!ref.current) {
+      return;
+    }
+
+    const items = ref.current.querySelectorAll('li');
+
+    items.forEach(i => i.addEventListener('keydown', handleKeydown));
+
+    return () => {
+      items.forEach(i => i.removeEventListener('keydown', handleKeydown));
+    };
+
+  }, [ ref.current ]);
+
+  return ref;
+}
+
+/**
+ *
+ * @param {Node} focusElement
+ */
+function focusNext(focusElement) {
+  const nextSibling = focusElement.nextSibling;
+
+  // (1) focus immediate neighbor
+  if (nextSibling) {
+    return nextSibling.querySelector('button').focus();
+  }
+
+  // (2) try to find neighbor in other section
+  const nextSection = focusElement.closest('section').nextElementSibling;
+  return nextSection && nextSection.querySelector('li button').focus();
+}
+
+/**
+ *
+ * @param {Node} focusElement
+ */
+function focusPrevious(focusElement) {
+  const previousSibling = focusElement.previousSibling;
+
+  // (1) focus immediate neighbor
+  if (previousSibling) {
+    return previousSibling.querySelector('button').focus();
+  }
+
+  // (2) try to find neighbor in other section
+  const previousSection = focusElement.closest('section').previousElementSibling;
+  return previousSection && previousSection.querySelector('li:last-child button').focus();
 }
