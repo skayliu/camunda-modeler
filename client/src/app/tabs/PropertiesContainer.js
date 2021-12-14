@@ -18,6 +18,8 @@ import dragger from '../../util/dom/dragger';
 
 import css from './PropertiesContainer.less';
 
+import HandleBar from '../../../resources/icons/HandleBar.svg';
+
 import { throttle } from '../../util';
 
 export const DEFAULT_LAYOUT = {
@@ -25,9 +27,7 @@ export const DEFAULT_LAYOUT = {
   width: 250
 };
 
-export const MIN_WIDTH = 150;
-export const MAX_WIDTH = 650;
-
+export const MIN_WIDTH = 250;
 
 /**
  * Container for properties panel that can be resized and toggled.
@@ -36,30 +36,53 @@ class PropertiesContainerWrapped extends PureComponent {
   constructor(props) {
     super(props);
 
-    this.handleResize = throttle(this.handleResize);
+    this.handlePanelResize = throttle(this.handlePanelResize);
 
-    this.ref = new React.createRef();
+    window.addEventListener('resize', this.handleResize);
+
+    this.containerRef = new React.createRef();
+    this.resizeHandlerRef = new React.createRef();
 
     this.context = {};
   }
 
   handleResizeStart = (event) => {
-    const onDragStart = dragger(this.handleResize);
+    const onDragStart = dragger(this.handlePanelResize);
 
     onDragStart(event);
 
-    const {
+    let {
       open,
-      width
+      width,
+      fullWidth
     } = getLayoutFromProps(this.props);
 
     this.context = {
       open,
-      startWidth: width
+      startWidth: width,
+      fullWidth
     };
   }
 
-  handleResize = (_, delta) => {
+  handleResize = () => {
+    const width = getCurrentWidth(this.containerRef.current);
+
+    if (width >= getMaxWidth()) {
+
+      const newWidth = getWindowWidth();
+      this.containerRef.current.style.width = `${newWidth}px`;
+
+      this.changeLayout({
+        propertiesPanel: {
+          open: true,
+          width: newWidth,
+          fullWidth: true
+        }
+      });
+    }
+  }
+
+  handlePanelResize = (_, delta) => {
     const { x: dx } = delta;
 
     if (dx === 0) {
@@ -70,25 +93,34 @@ class PropertiesContainerWrapped extends PureComponent {
 
     const {
       open,
-      width
+      width,
+      fullWidth
     } = getLayout(dx, startWidth);
 
     this.context = {
       ...this.context,
       open,
-      width
+      width,
+      fullWidth
     };
 
-    if (this.ref.current) {
-      this.ref.current.classList.toggle('open', open);
-      this.ref.current.style.width = `${ open ? width : 0 }px`;
+    const styledWidth = open ? `${width}px` : 0;
+
+    if (this.containerRef.current) {
+      this.containerRef.current.classList.toggle('open', open);
+      this.containerRef.current.style.width = styledWidth;
+    }
+
+    if (this.resizeHandlerRef.current) {
+      adjustResizeHandleStyles(this.resizeHandlerRef.current, this.context);
     }
   }
 
   handleResizeEnd = () => {
     const {
       open,
-      width
+      width,
+      fullWidth
     } = this.context;
 
     this.context = {};
@@ -96,7 +128,8 @@ class PropertiesContainerWrapped extends PureComponent {
     this.changeLayout({
       propertiesPanel: {
         open,
-        width
+        width,
+        fullWidth
       }
     });
   }
@@ -129,36 +162,36 @@ class PropertiesContainerWrapped extends PureComponent {
       forwardedRef
     } = this.props;
 
-    const {
+    let {
       open,
       width
     } = getLayoutFromProps(this.props);
 
     return (
       <div
-        ref={ this.ref }
+        ref={ this.containerRef }
         className={ classNames(
           css.PropertiesContainer,
           className,
           { open }
         ) }
         style={ { width } }>
+
         <div
-          className="toggle"
-          onClick={ this.handleToggle }
+          ref={ this.resizeHandlerRef }
+          className="resize-handle"
           draggable
           onDragStart={ this.handleResizeStart }
           onDragEnd={ this.handleResizeEnd }
-        >Properties Panel</div>
-        {
-          open &&
-            <div
-              className="resize-handle"
-              draggable
-              onDragStart={ this.handleResizeStart }
-              onDragEnd={ this.handleResizeEnd }
-            ></div>
-        }
+        ></div>
+
+        <div
+          className="toggle"
+          onClick={ this.handleToggle }
+        >
+          {!open && <HandleBar />}
+        </div>
+
         <div className="properties-container" ref={ forwardedRef }></div>
       </div>
     );
@@ -175,9 +208,11 @@ export default React.forwardRef(
 // helpers //////////
 
 function getLayout(dx, initialWidth) {
-  let width = Math.min(initialWidth - dx, MAX_WIDTH);
+  let width = initialWidth - dx;
 
   const open = width >= MIN_WIDTH;
+  const fullWidth = width >= getMaxWidth();
+  fullWidth ? width = window.innerWidth : null;
 
   if (!open) {
     width = DEFAULT_LAYOUT.width;
@@ -185,6 +220,7 @@ function getLayout(dx, initialWidth) {
 
   return {
     open,
+    fullWidth,
     width
   };
 }
@@ -194,12 +230,43 @@ function getLayoutFromProps(props) {
 
   const propertiesPanel = layout.propertiesPanel || DEFAULT_LAYOUT;
 
-  const { open } = propertiesPanel;
+  const { open, fullWidth } = propertiesPanel;
 
   const width = open ? propertiesPanel.width : 0;
 
   return {
     open,
-    width
+    width,
+    fullWidth
   };
+}
+
+function adjustResizeHandleStyles(handle, context) {
+  const {
+    open,
+    fullWidth
+  } = context;
+
+  handle.classList.remove('snapped-right');
+  handle.classList.remove('snapped-left');
+
+  if (!open)
+    handle.classList.add('snapped-right');
+
+  if (fullWidth)
+    handle.classList.add('snapped-left');
+
+}
+
+function getWindowWidth() {
+  return window.innerWidth;
+}
+
+function getMaxWidth() {
+  return getWindowWidth() * 0.8;
+}
+
+function getCurrentWidth(panel) {
+  const styledWidth = panel.style.width;
+  return parseInt(styledWidth.substring(0, styledWidth.length - 2));
 }

@@ -14,13 +14,12 @@ import React from 'react';
 
 import PropertiesContainer, {
   DEFAULT_LAYOUT,
-  MAX_WIDTH
 } from '../PropertiesContainer';
 
 import { mount } from 'enzyme';
 
 const { spy } = sinon;
-
+const MAX_WIDTH = 1000;
 
 describe('<PropertiesContainer>', function() {
 
@@ -60,12 +59,18 @@ describe('<PropertiesContainer>', function() {
     // when
     instance.handleResizeStart(createMouseEvent('dragstart', 0, 0));
 
-    instance.handleResize(null, { x: -50 });
+    instance.handlePanelResize(null, { x: -50 });
 
     instance.handleResizeEnd();
 
     // then
-    expect(onLayoutChangedSpy).to.be.calledWith({ propertiesPanel: { open: true, width: 550 } });
+    expect(onLayoutChangedSpy).to.be.calledWith({
+      propertiesPanel: {
+        open: true,
+        width: 550,
+        fullWidth: false
+      }
+    });
 
     // clean
     wrapper.unmount();
@@ -95,7 +100,7 @@ describe('<PropertiesContainer>', function() {
     // when
     instance.handleResizeStart(createMouseEvent('dragstart', 0, 0));
 
-    instance.handleResize(null, { x: 400 });
+    instance.handlePanelResize(null, { x: 400 });
 
     instance.handleResizeEnd();
 
@@ -103,7 +108,8 @@ describe('<PropertiesContainer>', function() {
     expect(onLayoutChangedSpy).to.be.calledWith({
       propertiesPanel: {
         open: false,
-        width: DEFAULT_LAYOUT.width
+        width: DEFAULT_LAYOUT.width,
+        fullWidth: false
       }
     });
 
@@ -112,7 +118,7 @@ describe('<PropertiesContainer>', function() {
   });
 
 
-  it('should not resize to larger than maximum size', function() {
+  it('should resize to full width when larger than maximum size', function() {
 
     // given
     const layout = {
@@ -121,6 +127,8 @@ describe('<PropertiesContainer>', function() {
         width: 500
       }
     };
+
+    global.innerWidth = 1000;
 
     const onLayoutChangedSpy = spy();
 
@@ -135,7 +143,7 @@ describe('<PropertiesContainer>', function() {
     // when
     instance.handleResizeStart(createMouseEvent('dragstart', 0, 0));
 
-    instance.handleResize(null, { x: -400 });
+    instance.handlePanelResize(null, { x: -1000 });
 
     instance.handleResizeEnd();
 
@@ -143,7 +151,48 @@ describe('<PropertiesContainer>', function() {
     expect(onLayoutChangedSpy).to.be.calledWith({
       propertiesPanel: {
         open: true,
-        width: MAX_WIDTH
+        width: MAX_WIDTH,
+        fullWidth: true
+      }
+    });
+
+    // clean
+    wrapper.unmount();
+  });
+
+
+  it('should adjust full width on window resize', function() {
+
+    // given
+    const layout = {
+      propertiesPanel: {
+        open: true,
+        width: 500,
+        fullWidth: true
+      }
+    };
+
+    const onLayoutChangedSpy = spy();
+
+    const {
+      wrapper
+    } = createPropertiesContainer({
+      layout,
+      onLayoutChanged: onLayoutChangedSpy
+    });
+
+    const resizedWidth = 400;
+    global.innerWidth = resizedWidth;
+
+    // when
+    global.dispatchEvent(new Event('resize'));
+
+    // then
+    expect(onLayoutChangedSpy).to.be.calledWith({
+      propertiesPanel: {
+        open: true,
+        width: resizedWidth,
+        fullWidth: true
       }
     });
 
