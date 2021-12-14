@@ -990,6 +990,8 @@ export class App extends PureComponent {
       tabs,
       tabLoadingState,
       tabState,
+      dirtyTabs,
+      unsavedTabs,
       layout,
       endpoints
     } = this.state;
@@ -1015,9 +1017,15 @@ export class App extends PureComponent {
       }
     }
 
-    if (tabs !== prevState.tabs) {
+    if (
+      tabs !== prevState.tabs ||
+      dirtyTabs !== prevState.dirtyTabs ||
+      unsavedTabs !== prevState.unsavedTabs
+    ) {
       this.emit('app.tabsChanged', {
-        tabs
+        tabs,
+        dirtyTabs,
+        unsavedTabs
       });
     }
 

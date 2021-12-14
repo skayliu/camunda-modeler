@@ -10,6 +10,8 @@
 
 import React from 'react';
 
+import { find } from 'min-dash';
+
 import { Fill } from '../../app/slot-fill';
 
 import {
@@ -35,18 +37,26 @@ export class TabContextAction extends React.PureComponent {
   constructor(props) {
     super(props);
 
-    this.state = { tabs: [] };
+    this.state = {
+      tabs: [],
+      dirtyTabs: {},
+      unsavedTabs: {}
+    };
 
     this._buttonRef = React.createRef();
   }
 
   updateTabs = (context) => {
     const {
-      tabs
+      tabs,
+      dirtyTabs,
+      unsavedTabs
     } = context;
 
     this.setState({
-      tabs
+      tabs,
+      dirtyTabs,
+      unsavedTabs
     });
   }
 
@@ -56,24 +66,31 @@ export class TabContextAction extends React.PureComponent {
     } = this.props;
 
     const {
-      tabs
+      tabs,
+      dirtyTabs,
+      unsavedTabs
     } = this.state;
 
     const options = {
       key: 'actions',
-      items: [
-        {
-          text: 'Save all files',
-          onClick: () => triggerAction('save-all')
-        },
-        {
-          text: 'Close active tab',
-          onClick: () => triggerAction('close-active-tab')
-        }
-      ]
+      items: []
     };
 
-    if (tabs.length > 1) {
+    // (1) get save options
+    if (canSave(dirtyTabs, unsavedTabs)) {
+      options.items.push({
+        text: 'Save all files',
+        onClick: () => triggerAction('save-all')
+      });
+    }
+
+    // (2) get close options
+    options.items.push({
+      text: 'Close active tab',
+      onClick: () => triggerAction('close-active-tab')
+    });
+
+    if (canClose(tabs)) {
       options.items.push({
         text: 'Close all tabs',
         onClick: () => triggerAction('close-all-tabs')
@@ -178,4 +195,15 @@ function getOpenTabsList(tabs, onSelect, getTabIcon) {
       onClick: () => onSelect(tab)
     };
   });
+}
+
+function canClose(tabs) {
+  return tabs.length > 1;
+}
+
+function canSave(dirtyTabs, unsavedTabs) {
+  return (
+    dirtyTabs && find(dirtyTabs, t => !!t) ||
+    unsavedTabs && find(unsavedTabs, t => !!t)
+  );
 }

@@ -33,6 +33,10 @@ const DEFAULT_TABS = [
   }
 ];
 
+const DEFAULT_ACTIVE_TABS = {
+  [DEFAULT_TABS[0].id]: true
+};
+
 
 describe('<TabContextAction>', function() {
 
@@ -128,7 +132,9 @@ describe('<TabContextAction>', function() {
           id: 'foo',
           name: 'bar'
         }
-      ]
+      ],
+      dirtyTabs: {},
+      unsavedTabs: {}
     });
     tree.find('button').simulate('click');
 
@@ -136,7 +142,6 @@ describe('<TabContextAction>', function() {
 
     // then
     expect(nodesAsTextList(items)).to.eql([
-      'Save all files',
       'Close active tab',
       'Close all tabs',
       'Close other tabs',
@@ -193,6 +198,29 @@ describe('<TabContextAction>', function() {
       expect(asTextList(options.items)).to.eql([
         'Save all files',
         'Close active tab'
+      ]);
+    });
+
+
+    it('should NOT retrieve save options', function() {
+
+      // given
+      const dirtyTabs = {};
+
+      const {
+        instance
+      } = createTabAction({
+        dirtyTabs
+      });
+
+      // when
+      const options = instance.getActionOptions();
+
+      // then
+      expect(asTextList(options.items)).to.eql([
+        'Close active tab',
+        'Close all tabs',
+        'Close other tabs'
       ]);
     });
 
@@ -258,11 +286,13 @@ describe('<TabContextAction>', function() {
 
 function createTabAction(options = {}) {
   const {
+    dirtyTabs = DEFAULT_ACTIVE_TABS,
     getTabIcon,
     onSelect,
     subscribe,
     tabs = DEFAULT_TABS,
-    triggerAction
+    triggerAction,
+    unsavedTabs
   } = options;
 
   const tree = mount(
@@ -275,7 +305,11 @@ function createTabAction(options = {}) {
 
   const instance = tree.instance();
 
-  setTabs(tabs, tree, instance);
+  setTabs(tree, instance, {
+    tabs,
+    dirtyTabs,
+    unsavedTabs
+  });
 
   return {
     tree,
@@ -283,9 +317,17 @@ function createTabAction(options = {}) {
   };
 }
 
-function setTabs(tabs, wrapper, instance) {
+function setTabs(wrapper, instance, options) {
+  const {
+    tabs,
+    dirtyTabs,
+    unsavedTabs
+  } = options;
+
   instance.setState({
-    tabs
+    tabs,
+    dirtyTabs,
+    unsavedTabs
   });
   return wrapper.update();
 }
